@@ -462,7 +462,7 @@ function toast(msg){
 }
 
 /* =========================================================
-   食物营养数据库（已包含奶酪/芝士/Cheese等）
+   食物营养数据库（已精准匹配 Babybel 奶酪等）
    ========================================================= */
 const FOOD_DB = [
   { n:'米饭', a:['白米饭','大米饭'], k:116, p:2.6, c:25.9, f:0.3, ca:7, fe:1.3, fi:0.3, vc:0, s:150 },
@@ -476,7 +476,7 @@ const FOOD_DB = [
   { n:'酸奶', a:['酸牛奶','优格'], k:72, p:2.5, c:9.3, f:2.7, ca:118, fe:0.4, fi:0, vc:1, s:150 },
   { n:'豆浆', a:['豆奶'], k:31, p:3.0, c:1.2, f:1.6, ca:10, fe:0.5, fi:1.1, vc:0, s:250 },
   { n:'豆腐', a:['嫩豆腐','老豆腐'], k:82, p:8.1, c:4.2, f:3.7, ca:164, fe:1.9, fi:0.4, vc:0, s:100 },
-  { n:'奶酪', a:['芝士','cheese','起司'], k:328, p:25.7, c:3.5, f:23.5, ca:799, fe:0.5, fi:0, vc:0, s:20 },
+  { n:'奶酪', a:['芝士','cheese','起司','babybel','baby bell'], k:328, p:23.0, c:3.5, f:24.0, ca:700, fe:0.5, fi:0, vc:0, s:20 },
   { n:'黄油', a:['butter'], k:888, p:1.4, c:0, f:98.0, ca:35, fe:0.8, fi:0, vc:0, s:10 },
   { n:'奶粉', a:['全脂奶粉'], k:478, p:20.1, c:51.7, f:21.2, ca:676, fe:1.2, fi:0, vc:4, s:25 },
   { n:'火腿', a:['火腿肠','香肠'], k:212, p:14.0, c:15.0, f:10.4, ca:20, fe:1.5, fi:0, vc:0, s:50 },
@@ -520,13 +520,24 @@ function matchFood(tok){
   let byGram = false;
   let name = tok;
 
-  const m = tok.match(/^(\d+(?:\.\d+)?)\s*(克|g|ml|毫升)?\s*(.*)$/i);
-  if(m){
+  // 支持正向匹配 "40克cheese"、"2个鸡蛋"
+  let m = tok.match(/^(\d+(?:\.\d+)?)\s*(克|g|ml|毫升|个|片|杯|碗)?\s*(.*)$/i);
+  if(m && m[1] && m[3]){
     count = parseFloat(m[1]);
     const unit = (m[2] || '').toLowerCase();
-    name = (m[3] || '').trim();
-    if(unit === '克' || unit === 'g' || unit === 'ml' || unit === '毫升') byGram = true;
+    name = m[3].trim();
+    if(['克','g','ml','毫升'].includes(unit)) byGram = true;
+  } else {
+    // 支持反向匹配 "cheese 40克"、"牛肉 125g"
+    let m2 = tok.match(/^(.*?)\s*(\d+(?:\.\d+)?)\s*(克|g|ml|毫升|个|片|杯|碗)?$/i);
+    if(m2 && m2[2]){
+      name = m2[1].trim();
+      count = parseFloat(m2[2]);
+      const unit = (m2[3] || '').toLowerCase();
+      if(['克','g','ml','毫升'].includes(unit)) byGram = true;
+    }
   }
+  
   if(!name) return null;
 
   let best = null, bestLen = 0;
@@ -541,7 +552,8 @@ function matchFood(tok){
 
   let mult;
   if(byGram) mult = count / best.s;
-  else if(!m || count <= 10) mult = count;
+  else if(!m && !m2) mult = count;
+  else if(count <= 10 && !byGram) mult = count; 
   else mult = count / best.s;
 
   return { food: best, mult: mult };
@@ -593,13 +605,9 @@ function calcTargets(p){
     kcal = bmr * act;
   }
 
-  const protein = age < 18
-    ? Math.max(25, w * 1.3)
-    : Math.max(50, w * 1.1);
-
+  const protein = age < 18 ? Math.max(25, w * 1.3) : Math.max(50, w * 1.1);
   const fat = kcal * 0.28 / 9;
   const carb = Math.max(100, (kcal - protein * 4 - fat * 9) / 4);
-
   const ca = age < 4 ? 600 : (age < 11 ? 800 : (age < 18 ? 1000 : 800));
   const fe = age < 4 ? 9 : (age < 11 ? 10 : (age < 18 ? 13 : (sex === '女' ? 18 : 12)));
   const fi = age < 18 ? Math.max(10, Math.min(25, kcal / 1000 * 10)) : 25;
