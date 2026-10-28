@@ -462,7 +462,7 @@ function toast(msg){
 }
 
 /* =========================================================
-   食物营养数据库
+   食物营养数据库（已包含奶酪/芝士/Cheese等）
    ========================================================= */
 const FOOD_DB = [
   { n:'米饭', a:['白米饭','大米饭'], k:116, p:2.6, c:25.9, f:0.3, ca:7, fe:1.3, fi:0.3, vc:0, s:150 },
@@ -476,6 +476,10 @@ const FOOD_DB = [
   { n:'酸奶', a:['酸牛奶','优格'], k:72, p:2.5, c:9.3, f:2.7, ca:118, fe:0.4, fi:0, vc:1, s:150 },
   { n:'豆浆', a:['豆奶'], k:31, p:3.0, c:1.2, f:1.6, ca:10, fe:0.5, fi:1.1, vc:0, s:250 },
   { n:'豆腐', a:['嫩豆腐','老豆腐'], k:82, p:8.1, c:4.2, f:3.7, ca:164, fe:1.9, fi:0.4, vc:0, s:100 },
+  { n:'奶酪', a:['芝士','cheese','起司'], k:328, p:25.7, c:3.5, f:23.5, ca:799, fe:0.5, fi:0, vc:0, s:20 },
+  { n:'黄油', a:['butter'], k:888, p:1.4, c:0, f:98.0, ca:35, fe:0.8, fi:0, vc:0, s:10 },
+  { n:'奶粉', a:['全脂奶粉'], k:478, p:20.1, c:51.7, f:21.2, ca:676, fe:1.2, fi:0, vc:4, s:25 },
+  { n:'火腿', a:['火腿肠','香肠'], k:212, p:14.0, c:15.0, f:10.4, ca:20, fe:1.5, fi:0, vc:0, s:50 },
   { n:'鸡胸肉', a:['鸡胸','鸡肉'], k:133, p:19.4, c:2.5, f:5.0, ca:3, fe:0.6, fi:0, vc:0, s:100 },
   { n:'鸡腿', a:['鸡腿肉','鸡翅'], k:181, p:16.0, c:0, f:13.0, ca:6, fe:1.5, fi:0, vc:0, s:100 },
   { n:'猪肉', a:['瘦肉','里脊','猪里脊'], k:143, p:20.3, c:1.5, f:6.2, ca:6, fe:3.0, fi:0, vc:0, s:80 },
@@ -528,7 +532,7 @@ function matchFood(tok){
   let best = null, bestLen = 0;
   FOOD_DB.forEach(function(f){
     [f.n].concat(f.a || []).forEach(function(nm){
-      if(nm.length > bestLen && name.indexOf(nm) >= 0){
+      if(nm.length > bestLen && name.toLowerCase().indexOf(nm.toLowerCase()) >= 0){
         best = f; bestLen = nm.length;
       }
     });
@@ -602,14 +606,8 @@ function calcTargets(p){
   const vc = age < 4 ? 40 : (age < 11 ? 60 : (age < 18 ? 80 : 100));
 
   return {
-    kcal: Math.round(kcal),
-    p: Math.round(protein),
-    c: Math.round(carb),
-    f: Math.round(fat),
-    ca: Math.round(ca),
-    fe: Math.round(fe * 10) / 10,
-    fi: Math.round(fi),
-    vc: Math.round(vc)
+    kcal: Math.round(kcal), p: Math.round(protein), c: Math.round(carb), f: Math.round(fat),
+    ca: Math.round(ca), fe: Math.round(fe * 10) / 10, fi: Math.round(fi), vc: Math.round(vc)
   };
 }
 
@@ -628,26 +626,12 @@ function defaultState(){
   return {
     recipes: [
       {
-        id: uid(),
-        name: '番茄炒蛋',
-        photo: '',
-        ingredients: [
-          { name: '番茄', amount: '2 个' },
-          { name: '鸡蛋', amount: '3 个' },
-          { name: '盐', amount: '1 小勺' },
-          { name: '糖', amount: '1 小勺' }
-        ],
-        steps: [
-          '鸡蛋打散，加一小撮盐搅匀。',
-          '番茄切块，热锅冷油下番茄炒出汁。',
-          '倒入蛋液，快速翻炒至凝固。',
-          '加盐和糖调味，出锅装盘。'
-        ]
+        id: uid(), name: '番茄炒蛋', photo: '',
+        ingredients: [{ name: '番茄', amount: '2 个' }, { name: '鸡蛋', amount: '3 个' }, { name: '盐', amount: '1 小勺' }],
+        steps: ['鸡蛋打散，加一小撮盐搅匀。', '番茄切块，热锅冷油下番茄炒出汁。', '倒入蛋液，快速翻炒至凝固。', '加盐和糖调味，出锅装盘。']
       }
     ],
-    diary: {},
-    menu: {},
-    shopping: [],
+    diary: {}, menu: {}, shopping: [],
     names: { me:'我', k1:'宝贝1', k2:'宝贝2' },
     profiles: defaultProfiles(),
     v: 1
@@ -678,39 +662,25 @@ function loadState(){
 }
 
 function save(){
-  try{
-    localStorage.setItem(KEY, JSON.stringify(state));
-  }catch(e){
-    toast('保存失败：存储空间可能已满');
-  }
+  try{ localStorage.setItem(KEY, JSON.stringify(state)); }catch(e){ toast('保存失败：存储空间可能已满'); }
 }
 
 /* =========================================================
    图片压缩
    ========================================================= */
 function compressImage(file, maxSide, quality){
-  maxSide = maxSide || 900;
-  quality = quality || 0.72;
+  maxSide = maxSide || 900; quality = quality || 0.72;
   return new Promise(function(resolve, reject){
-    const img = new Image();
-    const url = URL.createObjectURL(file);
+    const img = new Image(); const url = URL.createObjectURL(file);
     img.onload = function(){
       try{
         URL.revokeObjectURL(url);
         let w = img.naturalWidth, h = img.naturalHeight;
         const m = Math.max(w, h);
-        if(m > maxSide){
-          const s = maxSide / m;
-          w = Math.round(w * s);
-          h = Math.round(h * s);
-        }
-        const c = document.createElement('canvas');
-        c.width = w; c.height = h;
-        const ctx = c.getContext('2d');
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(0, 0, w, h);
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve(c.toDataURL('image/jpeg', quality));
+        if(m > maxSide){ const s = maxSide / m; w = Math.round(w * s); h = Math.round(h * s); }
+        const c = document.createElement('canvas'); c.width = w; c.height = h;
+        const ctx = c.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h); resolve(c.toDataURL('image/jpeg', quality));
       }catch(err){ reject(err); }
     };
     img.onerror = function(){ URL.revokeObjectURL(url); reject(new Error('load fail')); };
@@ -722,12 +692,8 @@ function compressImage(file, maxSide, quality){
    导航
    ========================================================= */
 function switchTab(name){
-  $$('.page').forEach(function(p){
-    p.classList.toggle('active', p.id === 'page-' + name);
-  });
-  $$('.tab').forEach(function(t){
-    t.classList.toggle('active', t.dataset.tab === name);
-  });
+  $$('.page').forEach(function(p){ p.classList.toggle('active', p.id === 'page-' + name); });
+  $$('.tab').forEach(function(t){ t.classList.toggle('active', t.dataset.tab === name); });
   window.scrollTo(0, 0);
   if(name === 'recipes')   renderRecipes();
   if(name === 'diary')     renderDiary();
@@ -736,10 +702,7 @@ function switchTab(name){
   if(name === 'shopping')  renderShopping();
   if(name === 'backup')    renderBackup();
 }
-
-$$('.tab').forEach(function(t){
-  t.addEventListener('click', function(){ switchTab(t.dataset.tab); });
-});
+$$('.tab').forEach(function(t){ t.addEventListener('click', function(){ switchTab(t.dataset.tab); }); });
 
 /* =========================================================
    食谱
@@ -749,99 +712,49 @@ function renderRecipes(){
   const list = state.recipes.filter(function(r){
     if(!q) return true;
     if((r.name || '').toLowerCase().indexOf(q) >= 0) return true;
-    return (r.ingredients || []).some(function(i){
-      return (i.name || '').toLowerCase().indexOf(q) >= 0;
-    });
+    return (r.ingredients || []).some(function(i){ return (i.name || '').toLowerCase().indexOf(q) >= 0; });
   });
-
   const wrap = $('#recipeList');
-
   if(!list.length){
-    wrap.innerHTML =
-      '<div class="empty"><div class="empty-ico">🍳</div><p>' +
-      (q ? '没有找到相关食谱' : '还没有食谱<br>点右上角 ＋ 添加第一道家常菜') +
-      '</p></div>';
+    wrap.innerHTML = '<div class="empty"><div class="empty-ico">🍳</div><p>' + (q ? '没有找到相关食谱' : '还没有食谱<br>点右上角 ＋ 添加第一道家常菜') + '</p></div>';
     return;
   }
-
   wrap.innerHTML = list.map(function(r){
-    const ing = (r.ingredients || []).length;
-    const stp = (r.steps || []).length;
     return '<div class="recipe-card" data-id="' + r.id + '">' +
-      '<div class="thumb">' + (r.photo
-        ? '<img src="' + r.photo + '" alt="">'
-        : '🍲') + '</div>' +
-      '<div class="rc-body">' +
-        '<div class="rc-title">' + esc(r.name) + '</div>' +
-        '<div class="rc-sub">' + ing + ' 种食材 · ' + stp + ' 个步骤</div>' +
-      '</div>' +
-      '<span class="chev">›</span>' +
-    '</div>';
+      '<div class="thumb">' + (r.photo ? '<img src="' + r.photo + '" alt="">' : '🍲') + '</div>' +
+      '<div class="rc-body"><div class="rc-title">' + esc(r.name) + '</div>' +
+        '<div class="rc-sub">' + (r.ingredients || []).length + ' 种食材 · ' + (r.steps || []).length + ' 个步骤</div></div>' +
+      '<span class="chev">›</span></div>';
   }).join('');
 }
-
 $('#recipeList').addEventListener('click', function(e){
   const card = e.target.closest('.recipe-card');
   if(card) openRecipeView(card.dataset.id);
 });
-
 $('#addRecipeBtn').addEventListener('click', function(){ openRecipeEdit(null); });
 
 function openRecipeView(id){
   const r = state.recipes.find(function(x){ return x.id === id; });
   if(!r) return;
-
-  const ingHtml = (r.ingredients || []).length
-    ? r.ingredients.map(function(i){
-        return '<div class="ing-view-row"><span>' + esc(i.name) + '</span><b>' + esc(i.amount) + '</b></div>';
-      }).join('')
-    : '<div class="muted">暂无食材</div>';
-
-  const stepHtml = (r.steps || []).length
-    ? r.steps.map(function(s){ return '<li>' + esc(s) + '</li>'; }).join('')
-    : '<li class="muted">暂无步骤</li>';
-
+  const ingHtml = (r.ingredients || []).length ? r.ingredients.map(function(i){ return '<div class="ing-view-row"><span>' + esc(i.name) + '</span><b>' + esc(i.amount) + '</b></div>'; }).join('') : '<div class="muted">暂无食材</div>';
+  const stepHtml = (r.steps || []).length ? r.steps.map(function(s){ return '<li>' + esc(s) + '</li>'; }).join('') : '<li class="muted">暂无步骤</li>';
   showModal(
-    '<div class="sheet-head">' +
-      '<button class="text-btn" id="rBack">关闭</button>' +
-      '<div class="sheet-title">食谱详情</div>' +
-      '<button class="text-btn strong" id="rEdit">编辑</button>' +
-    '</div>' +
-    '<div class="sheet-body">' +
-      (r.photo ? '<div class="detail-photo"><img src="' + r.photo + '" alt=""></div>' : '') +
-      '<h2 class="detail-title">' + esc(r.name) + '</h2>' +
-      '<div class="section-label">食材</div>' + ingHtml +
-      '<div class="section-label">步骤</div>' +
-      '<ol class="step-view">' + stepHtml + '</ol>' +
-    '</div>'
+    '<div class="sheet-head"><button class="text-btn" id="rBack">关闭</button><div class="sheet-title">食谱详情</div><button class="text-btn strong" id="rEdit">编辑</button></div>' +
+    '<div class="sheet-body">' + (r.photo ? '<div class="detail-photo"><img src="' + r.photo + '" alt=""></div>' : '') +
+      '<h2 class="detail-title">' + esc(r.name) + '</h2><div class="section-label">食材</div>' + ingHtml +
+      '<div class="section-label">步骤</div><ol class="step-view">' + stepHtml + '</ol></div>'
   );
-
   $('#rBack').onclick = hideModal;
   $('#rEdit').onclick = function(){ openRecipeEdit(r.id); };
 }
 
 let draft = null;
-
 function openRecipeEdit(id){
   const r = id ? state.recipes.find(function(x){ return x.id === id; }) : null;
   if(r){
-    draft = {
-      id: r.id,
-      name: r.name || '',
-      photo: r.photo || '',
-      ingredients: (r.ingredients || []).map(function(i){ return { name: i.name, amount: i.amount }; }),
-      steps: (r.steps || []).slice(),
-      isNew: false
-    };
+    draft = { id: r.id, name: r.name || '', photo: r.photo || '', ingredients: (r.ingredients || []).map(function(i){ return { name: i.name, amount: i.amount }; }), steps: (r.steps || []).slice(), isNew: false };
   }else{
-    draft = {
-      id: uid(),
-      name: '',
-      photo: '',
-      ingredients: [{ name: '', amount: '' }],
-      steps: [''],
-      isNew: true
-    };
+    draft = { id: uid(), name: '', photo: '', ingredients: [{ name: '', amount: '' }], steps: [''], isNew: true };
   }
   if(!draft.ingredients.length) draft.ingredients.push({ name: '', amount: '' });
   if(!draft.steps.length) draft.steps.push('');
@@ -850,129 +763,50 @@ function openRecipeEdit(id){
 
 function renderRecipeEdit(){
   const d = draft;
-
   const ingRows = d.ingredients.map(function(ing, i){
-    return '<div class="ing-row">' +
-      '<input class="ing-name" data-i="' + i + '" placeholder="食材" value="' + esc(ing.name) + '">' +
+    return '<div class="ing-row"><input class="ing-name" data-i="' + i + '" placeholder="食材" value="' + esc(ing.name) + '">' +
       '<input class="ing-amt" data-i="' + i + '" placeholder="用量" value="' + esc(ing.amount) + '">' +
-      '<button class="row-del" data-del-ing="' + i + '">✕</button>' +
-    '</div>';
+      '<button class="row-del" data-del-ing="' + i + '">✕</button></div>';
   }).join('');
-
   const stepRows = d.steps.map(function(s, i){
-    return '<div class="step-row">' +
-      '<div class="step-no">' + (i + 1) + '</div>' +
+    return '<div class="step-row"><div class="step-no">' + (i + 1) + '</div>' +
       '<textarea class="step-input" data-s="' + i + '" rows="2" placeholder="描述这一步">' + esc(s) + '</textarea>' +
-      '<button class="row-del" data-del-step="' + i + '">✕</button>' +
-    '</div>';
+      '<button class="row-del" data-del-step="' + i + '">✕</button></div>';
   }).join('');
-
   showModal(
-    '<div class="sheet-head">' +
-      '<button class="text-btn" id="cancelRecipe">取消</button>' +
-      '<div class="sheet-title">' + (d.isNew ? '新建食谱' : '编辑食谱') + '</div>' +
-      '<button class="text-btn strong" id="saveRecipe">保存</button>' +
-    '</div>' +
-    '<div class="sheet-body">' +
-
-      '<div class="photo-pick" id="photoPick">' +
-        (d.photo
-          ? '<img src="' + d.photo + '" alt=""><button class="photo-x" id="photoX">✕</button>'
-          : '<div class="photo-empty"><span>📷</span>点击添加照片</div>') +
-      '</div>' +
+    '<div class="sheet-head"><button class="text-btn" id="cancelRecipe">取消</button><div class="sheet-title">' + (d.isNew ? '新建食谱' : '编辑食谱') + '</div><button class="text-btn strong" id="saveRecipe">保存</button></div>' +
+    '<div class="sheet-body"><div class="photo-pick" id="photoPick">' + (d.photo ? '<img src="' + d.photo + '" alt=""><button class="photo-x" id="photoX">✕</button>' : '<div class="photo-empty"><span>📷</span>点击添加照片</div>') + '</div>' +
       '<input type="file" id="photoInput" accept="image/*" hidden>' +
-
-      '<div class="field">' +
-        '<label>菜名</label>' +
-        '<input id="rName" placeholder="例如：番茄炒蛋" value="' + esc(d.name) + '">' +
-      '</div>' +
-
-      '<div class="section-label">食材</div>' +
-      '<div id="ingList">' + ingRows + '</div>' +
-      '<button class="add-row" id="addIng">＋ 添加食材</button>' +
-
-      '<div class="section-label">步骤</div>' +
-      '<div id="stepList">' + stepRows + '</div>' +
-      '<button class="add-row" id="addStep">＋ 添加步骤</button>' +
-
-      (!d.isNew
-        ? '<div style="height:26px"></div><button class="btn danger" id="delRecipe">删除这个食谱</button>'
-        : '') +
-
-    '</div>'
+      '<div class="field"><label>菜名</label><input id="rName" placeholder="例如：番茄炒蛋" value="' + esc(d.name) + '"></div>' +
+      '<div class="section-label">食材</div><div id="ingList">' + ingRows + '</div><button class="add-row" id="addIng">＋ 添加食材</button>' +
+      '<div class="section-label">步骤</div><div id="stepList">' + stepRows + '</div><button class="add-row" id="addStep">＋ 添加步骤</button>' +
+      (!d.isNew ? '<div style="height:26px"></div><button class="btn danger" id="delRecipe">删除这个食谱</button>' : '') + '</div>'
   );
-
   const modal = $('#modal');
-
   $('#cancelRecipe').onclick = function(){ draft = null; hideModal(); };
   $('#saveRecipe').onclick = saveRecipe;
-
   $('#rName').oninput = function(e){ draft.name = e.target.value; };
-
-  $$('.ing-name', modal).forEach(function(inp){
-    inp.oninput = function(){ draft.ingredients[+inp.dataset.i].name = inp.value; };
-  });
-  $$('.ing-amt', modal).forEach(function(inp){
-    inp.oninput = function(){ draft.ingredients[+inp.dataset.i].amount = inp.value; };
-  });
-  $$('.step-input', modal).forEach(function(t){
-    t.oninput = function(){ draft.steps[+t.dataset.s] = t.value; };
-  });
-
-  $$('[data-del-ing]', modal).forEach(function(b){
-    b.onclick = function(){
-      draft.ingredients.splice(+b.dataset.delIng, 1);
-      if(!draft.ingredients.length) draft.ingredients.push({ name:'', amount:'' });
-      renderRecipeEdit();
-    };
-  });
-  $$('[data-del-step]', modal).forEach(function(b){
-    b.onclick = function(){
-      draft.steps.splice(+b.dataset.delStep, 1);
-      if(!draft.steps.length) draft.steps.push('');
-      renderRecipeEdit();
-    };
-  });
-
-  $('#addIng').onclick = function(){
-    draft.ingredients.push({ name:'', amount:'' });
-    renderRecipeEdit();
-  };
-  $('#addStep').onclick = function(){
-    draft.steps.push('');
-    renderRecipeEdit();
-  };
-
+  $$('.ing-name', modal).forEach(function(inp){ inp.oninput = function(){ draft.ingredients[+inp.dataset.i].name = inp.value; }; });
+  $$('.ing-amt', modal).forEach(function(inp){ inp.oninput = function(){ draft.ingredients[+inp.dataset.i].amount = inp.value; }; });
+  $$('.step-input', modal).forEach(function(t){ t.oninput = function(){ draft.steps[+t.dataset.s] = t.value; }; });
+  $$('[data-del-ing]', modal).forEach(function(b){ b.onclick = function(){ draft.ingredients.splice(+b.dataset.delIng, 1); if(!draft.ingredients.length) draft.ingredients.push({ name:'', amount:'' }); renderRecipeEdit(); }; });
+  $$('[data-del-step]', modal).forEach(function(b){ b.onclick = function(){ draft.steps.splice(+b.dataset.delStep, 1); if(!draft.steps.length) draft.steps.push(''); renderRecipeEdit(); }; });
+  $('#addIng').onclick = function(){ draft.ingredients.push({ name:'', amount:'' }); renderRecipeEdit(); };
+  $('#addStep').onclick = function(){ draft.steps.push(''); renderRecipeEdit(); };
   $('#photoPick').onclick = function(){ $('#photoInput').click(); };
   $('#photoInput').onchange = function(e){
     const f = e.target.files && e.target.files[0];
     if(!f) return;
-    compressImage(f, 900, 0.72).then(function(dataUrl){
-      draft.photo = dataUrl;
-      renderRecipeEdit();
-    }).catch(function(){
-      toast('照片读取失败');
-    });
+    compressImage(f, 900, 0.72).then(function(dataUrl){ draft.photo = dataUrl; renderRecipeEdit(); }).catch(function(){ toast('照片读取失败'); });
   };
   const px = $('#photoX');
-  if(px){
-    px.onclick = function(ev){
-      ev.stopPropagation();
-      draft.photo = '';
-      renderRecipeEdit();
-    };
-  }
-
+  if(px){ px.onclick = function(ev){ ev.stopPropagation(); draft.photo = ''; renderRecipeEdit(); }; }
   const delBtn = $('#delRecipe');
   if(delBtn){
     delBtn.onclick = function(){
       if(!confirm('确定删除「' + (draft.name || '这个食谱') + '」吗？')) return;
       state.recipes = state.recipes.filter(function(x){ return x.id !== draft.id; });
-      save();
-      draft = null;
-      hideModal();
-      renderRecipes();
-      toast('已删除');
+      save(); draft = null; hideModal(); renderRecipes(); toast('已删除');
     };
   }
 }
@@ -981,26 +815,14 @@ function saveRecipe(){
   if(!draft) return;
   const name = (draft.name || '').trim();
   if(!name){ toast('请填写菜名'); return; }
-
   const rec = {
-    id: draft.id,
-    name: name,
-    photo: draft.photo || '',
-    ingredients: draft.ingredients
-      .filter(function(i){ return (i.name || '').trim() || (i.amount || '').trim(); })
-      .map(function(i){ return { name: (i.name || '').trim(), amount: (i.amount || '').trim() }; }),
+    id: draft.id, name: name, photo: draft.photo || '',
+    ingredients: draft.ingredients.filter(function(i){ return (i.name || '').trim() || (i.amount || '').trim(); }).map(function(i){ return { name: (i.name || '').trim(), amount: (i.amount || '').trim() }; }),
     steps: draft.steps.map(function(s){ return (s || '').trim(); }).filter(Boolean)
   };
-
   const idx = state.recipes.findIndex(function(r){ return r.id === rec.id; });
-  if(idx >= 0) state.recipes[idx] = rec;
-  else state.recipes.unshift(rec);
-
-  save();
-  draft = null;
-  hideModal();
-  renderRecipes();
-  toast('已保存');
+  if(idx >= 0) state.recipes[idx] = rec; else state.recipes.unshift(rec);
+  save(); draft = null; hideModal(); renderRecipes(); toast('已保存');
 }
 
 /* =========================================================
@@ -1018,50 +840,36 @@ function hideModal(){
 }
 
 /* =========================================================
-   饮食日记 (加上了书写提示)
+   饮食日记
    ========================================================= */
 let diaryDate = todayStr();
 const MEALS = [['b','早餐'], ['l','午餐'], ['d','晚餐'], ['s','加餐']];
 
-function shiftDiary(n){
-  diaryDate = addDays(diaryDate, n);
-  renderDiary();
-}
+function shiftDiary(n){ diaryDate = addDays(diaryDate, n); renderDiary(); }
 
 function renderDiary(){
   const nav = $('#diaryNav');
-  nav.innerHTML =
-    '<button class="nav-btn" onclick="shiftDiary(-1)">‹</button>' +
+  nav.innerHTML = '<button class="nav-btn" onclick="shiftDiary(-1)">‹</button>' +
     '<input type="date" id="diaryDateInput" value="' + diaryDate + '">' +
     '<button class="nav-btn" onclick="shiftDiary(1)">›</button>';
-
-  $('#diaryDateInput').onchange = function(e){
-    if(e.target.value){ diaryDate = e.target.value; renderDiary(); }
-  };
-
+  $('#diaryDateInput').onchange = function(e){ if(e.target.value){ diaryDate = e.target.value; renderDiary(); } };
   const day = state.diary[diaryDate] || {};
   const people = [
     { k: 'me', emoji: '👩', name: state.names.me },
     { k: 'k1', emoji: '🧒', name: state.names.k1 },
     { k: 'k2', emoji: '👶', name: state.names.k2 }
   ];
-
   $('#diaryBody').innerHTML = people.map(function(p){
     const rec = day[p.k] || {};
     const rows = MEALS.map(function(m){
-      return '<div class="meal-line">' +
-        '<span class="meal-label">' + m[1] + '</span>' +
+      return '<div class="meal-line"><span class="meal-label">' + m[1] + '</span>' +
         '<input class="meal-input" data-p="' + p.k + '" data-m="' + m[0] + '" ' +
           'value="' + esc(rec[m[0]] || '') + '" placeholder="如:牛奶200ml,鸡蛋1个(写清分量更准)">' +
       '</div>';
     }).join('');
-
-    return '<div class="card">' +
-      '<div class="person-head">' +
-        '<span class="person-emoji">' + p.emoji + '</span>' +
+    return '<div class="card"><div class="person-head"><span class="person-emoji">' + p.emoji + '</span>' +
         '<input class="person-name" data-name="' + p.k + '" value="' + esc(p.name) + '" placeholder="名字">' +
-      '</div>' + rows +
-    '</div>';
+      '</div>' + rows + '</div>';
   }).join('');
 }
 
@@ -1085,16 +893,9 @@ $('#page-diary').addEventListener('input', function(e){
 /* =========================================================
    每日营养
    ========================================================= */
-function shiftNutri(n){
-  diaryDate = addDays(diaryDate, n);
-  renderNutrition();
-}
+function shiftNutri(n){ diaryDate = addDays(diaryDate, n); renderNutrition(); }
 
-function pctOf(v, t){
-  if(t <= 0) return 0;
-  return v / t * 100;
-}
-
+function pctOf(v, t){ if(t <= 0) return 0; return v / t * 100; }
 function barColor(pct){
   if(pct >= 100) return '#3F9E71';
   if(pct >= 80) return '#6BA84E';
@@ -1116,70 +917,38 @@ function nutriRow(label, val, target, unit, digits){
   const color = barColor(pct);
   const vTxt = val.toFixed(d);
   const tTxt = target.toFixed(d);
-  return '<div class="nr-row">' +
-    '<div class="nr-head">' +
-      '<span class="nr-name">' + label + '</span>' +
-      '<span class="nr-val" style="color:' + (pct >= 100 ? '#3F9E71' : '') + '">' + vTxt + ' / ' + tTxt + ' ' + unit + '</span>' +
-    '</div>' +
-    '<div class="nr-bar"><i style="width:' + w + '%;background:' + color + '"></i></div>' +
-  '</div>';
+  return '<div class="nr-row"><div class="nr-head"><span class="nr-name">' + label + '</span>' +
+      '<span class="nr-val" style="color:' + (pct >= 100 ? '#3F9E71' : '') + '">' + vTxt + ' / ' + tTxt + ' ' + unit + '</span></div>' +
+    '<div class="nr-bar"><i style="width:' + w + '%;background:' + color + '"></i></div></div>';
 }
 
 function buildAdvice(t, i){
-  if(i.kcal === 0){
-    return ['这一天还没有记录吃了什么，去「日记」里填一下，就能看到营养进度啦。'];
-  }
+  if(i.kcal === 0) return ['这一天还没有记录吃了什么，去「日记」里填一下，就能看到营养进度啦。'];
   const tips = [];
-  if(i.p < t.p * 0.85){
-    const gap = Math.max(0, Math.round(t.p - i.p));
-    tips.push('蛋白质还差约 ' + gap + 'g，可以加一个鸡蛋、一杯牛奶或一份鸡胸肉。');
-  }
-  if(i.ca < t.ca * 0.8){
-    const gap = Math.max(0, Math.round(t.ca - i.ca));
-    tips.push('钙还差约 ' + gap + 'mg，建议加一杯牛奶或一份豆腐。');
-  }
-  if(i.fe < t.fe * 0.8){
-    const gap = Math.max(0, Math.round((t.fe - i.fe) * 10) / 10);
-    tips.push('铁还差约 ' + gap + 'mg，可以吃点瘦肉、猪肝或深绿色蔬菜。');
-  }
-  if(i.fi < t.fi * 0.7){
-    tips.push('膳食纤维偏少，加一份蔬菜或一个苹果会更均衡。');
-  }
-  if(i.vc < t.vc * 0.7){
-    tips.push('维生素 C 偏少，吃个橙子或者一份青椒吧。');
-  }
-  if(i.kcal < t.kcal * 0.8){
-    const gap = Math.max(0, Math.round(t.kcal - i.kcal));
-    tips.push('热量还差约 ' + gap + ' kcal，可以再补充一些主食。');
-  }
-  if(i.kcal > t.kcal * 1.2){
-    tips.push('热量已超过目标，注意控制零食和油的用量。');
-  }
-  if(!tips.length){
-    return ['今天各项营养都接近目标，继续保持 👍'];
-  }
+  if(i.p < t.p * 0.85){ const gap = Math.max(0, Math.round(t.p - i.p)); tips.push('蛋白质还差约 ' + gap + 'g，可以加一个鸡蛋、一杯牛奶或一份鸡胸肉。'); }
+  if(i.ca < t.ca * 0.8){ const gap = Math.max(0, Math.round(t.ca - i.ca)); tips.push('钙还差约 ' + gap + 'mg，建议加一杯牛奶或一份豆腐。'); }
+  if(i.fe < t.fe * 0.8){ const gap = Math.max(0, Math.round((t.fe - i.fe) * 10) / 10); tips.push('铁还差约 ' + gap + 'mg，可以吃点瘦肉、猪肝或深绿色蔬菜。'); }
+  if(i.fi < t.fi * 0.7){ tips.push('膳食纤维偏少，加一份蔬菜或一个苹果会更均衡。'); }
+  if(i.vc < t.vc * 0.7){ tips.push('维生素 C 偏少，吃个橙子或者一份青椒吧。'); }
+  if(i.kcal < t.kcal * 0.8){ const gap = Math.max(0, Math.round(t.kcal - i.kcal)); tips.push('热量还差约 ' + gap + ' kcal，可以再补充一些主食。'); }
+  if(i.kcal > t.kcal * 1.2){ tips.push('热量已超过目标，注意控制零食和油的用量。'); }
+  if(!tips.length) return ['今天各项营养都接近目标，继续保持 👍'];
   return tips.slice(0, 3);
 }
 
 function renderNutrition(){
   const nav = $('#nutriNav');
-  nav.innerHTML =
-    '<button class="nav-btn" onclick="shiftNutri(-1)">‹</button>' +
+  nav.innerHTML = '<button class="nav-btn" onclick="shiftNutri(-1)">‹</button>' +
     '<input type="date" id="nutriDateInput" value="' + diaryDate + '">' +
     '<button class="nav-btn" onclick="shiftNutri(1)">›</button>';
-
-  $('#nutriDateInput').onchange = function(e){
-    if(e.target.value){ diaryDate = e.target.value; renderNutrition(); }
-  };
+  $('#nutriDateInput').onchange = function(e){ if(e.target.value){ diaryDate = e.target.value; renderNutrition(); } };
 
   const people = [
     { k:'me', emoji:'👩', profile: state.profiles.me || {} },
     { k:'k1', emoji:'🧒', profile: state.profiles.k1 || {} },
     { k:'k2', emoji:'👶', profile: state.profiles.k2 || {} }
   ];
-
-  let html = '<div class="nutri-tip">根据身高、体重估算营养目标。日记里带数字（如"牛奶200ml"）会让估算更准确。</div>';
-
+  let html = '<div class="nutri-tip">根据身高、体重估算营养目标。日记里带数字（如"牛奶200ml"或"cheese 40克"）会让估算更准确。</div>';
   html += people.map(function(x){
     const prof = x.profile;
     const name = prof.name || state.names[x.k] || '成员';
@@ -1188,12 +957,8 @@ function renderNutrition(){
     const bmi = prof.weight && prof.height ? (prof.weight / Math.pow(prof.height / 100, 2)).toFixed(1) : '—';
     const meta = [ (prof.height || '—') + 'cm', (prof.weight || '—') + 'kg', 'BMI ' + bmi, '目标 ' + t.kcal + ' kcal' ].join(' · ');
     const advice = buildAdvice(t, intake);
-
-    return '<div class="card">' +
-      '<div class="nutri-head">' +
-        '<div class="nh-left"><span class="nh-emoji">' + x.emoji + '</span><span class="nh-name">' + esc(name) + '</span></div>' +
-        '<button class="nh-edit" onclick="openProfileEdit(\'' + x.k + '\')">编辑档案</button>' +
-      '</div>' +
+    return '<div class="card"><div class="nutri-head"><div class="nh-left"><span class="nh-emoji">' + x.emoji + '</span><span class="nh-name">' + esc(name) + '</span></div>' +
+        '<button class="nh-edit" onclick="openProfileEdit(\'' + x.k + '\')">编辑档案</button></div>' +
       '<div class="nh-meta">' + meta + '</div>' +
       nutriRow('热量', intake.kcal, t.kcal, 'kcal') +
       nutriRow('蛋白质', intake.p, t.p, 'g', 1) +
@@ -1203,63 +968,37 @@ function renderNutrition(){
       nutriRow('铁', intake.fe, t.fe, 'mg', 1) +
       nutriRow('膳食纤维', intake.fi, t.fi, 'g', 1) +
       nutriRow('维生素 C', intake.vc, t.vc, 'mg') +
-      '<div class="advice">' + advice.map(function(a){ return '<p>' + esc(a) + '</p>'; }).join('') + '</div>' +
-    '</div>';
+      '<div class="advice">' + advice.map(function(a){ return '<p>' + esc(a) + '</p>'; }).join('') + '</div></div>';
   }).join('');
-
   $('#nutriBody').innerHTML = html;
 }
 
 function openProfileEdit(key){
   const p = state.profiles[key] || {};
   const name = p.name || state.names[key] || '';
-
   showModal(
-    '<div class="sheet-head">' +
-      '<button class="text-btn" onclick="hideModal()">取消</button>' +
-      '<div class="sheet-title">编辑档案</div>' +
-      '<button class="text-btn strong" onclick="saveProfile(\'' + key + '\')">保存</button>' +
-    '</div>' +
+    '<div class="sheet-head"><button class="text-btn" onclick="hideModal()">取消</button><div class="sheet-title">编辑档案</div><button class="text-btn strong" onclick="saveProfile(\'' + key + '\')">保存</button></div>' +
     '<div class="sheet-body">' +
       '<div class="field"><label>称呼</label><input id="pfName" placeholder="例如：我 / 宝贝1" value="' + esc(name) + '"></div>' +
       '<div class="field"><label>性别</label><select id="pfSex"><option value="女">女</option><option value="男">男</option></select></div>' +
       '<div class="field"><label>年龄</label><input id="pfAge" type="number" inputmode="numeric" value="' + (p.age || 30) + '"></div>' +
-      '<div class="row2">' +
-        '<div class="field" style="flex:1"><label>身高 cm</label><input id="pfH" type="number" inputmode="decimal" value="' + (p.height || 165) + '"></div>' +
-        '<div class="field" style="flex:1"><label>体重 kg</label><input id="pfW" type="number" inputmode="decimal" value="' + (p.weight || 55) + '"></div>' +
-      '</div>' +
-      '<div class="field"><label>活动量</label>' +
-        '<select id="pfAct">' +
-          '<option value="1.2">少（久坐、很少运动）</option>' +
-          '<option value="1.4">中（日常活动）</option>' +
-          '<option value="1.6">多（经常运动）</option>' +
-        '</select>' +
-      '</div>' +
-      '<div id="pfPreview" class="card" style="background:var(--accent-soft);box-shadow:none;margin-top:4px;"></div>' +
-    '</div>'
+      '<div class="row2"><div class="field" style="flex:1"><label>身高 cm</label><input id="pfH" type="number" inputmode="decimal" value="' + (p.height || 165) + '"></div>' +
+        '<div class="field" style="flex:1"><label>体重 kg</label><input id="pfW" type="number" inputmode="decimal" value="' + (p.weight || 55) + '"></div></div>' +
+      '<div class="field"><label>活动量</label><select id="pfAct"><option value="1.2">少（久坐、很少运动）</option><option value="1.4">中（日常活动）</option><option value="1.6">多（经常运动）</option></select></div>' +
+      '<div id="pfPreview" class="card" style="background:var(--accent-soft);box-shadow:none;margin-top:4px;"></div></div>'
   );
-
   $('#pfSex').value = p.sex || '女';
   $('#pfAct').value = String(p.act || 1.4);
-
   function preview(){
     const tmp = { sex: $('#pfSex').value, age: +$('#pfAge').value || 30, height: +$('#pfH').value || 165, weight: +$('#pfW').value || 55, act: +$('#pfAct').value || 1.4 };
     const t = calcTargets(tmp);
     const bmi = tmp.weight / Math.pow(tmp.height / 100, 2);
-    $('#pfPreview').innerHTML =
-      '<div style="font-size:12.5px;color:var(--muted);margin-bottom:6px;">根据填写的数据估算</div>' +
-      '<div style="font-size:14px;line-height:1.8;">' +
-        'BMI <b>' + bmi.toFixed(1) + '</b> · 每日约 <b>' + t.kcal + ' kcal</b><br>' +
+    $('#pfPreview').innerHTML = '<div style="font-size:12.5px;color:var(--muted);margin-bottom:6px;">根据填写的数据估算</div>' +
+      '<div style="font-size:14px;line-height:1.8;">BMI <b>' + bmi.toFixed(1) + '</b> · 每日约 <b>' + t.kcal + ' kcal</b><br>' +
         '蛋白质 ' + t.p + 'g · 碳水 ' + t.c + 'g · 脂肪 ' + t.f + 'g<br>' +
-        '钙 ' + t.ca + 'mg · 铁 ' + t.fe + 'mg · 纤维 ' + t.fi + 'g · 维C ' + t.vc + 'mg' +
-      '</div>';
+        '钙 ' + t.ca + 'mg · 铁 ' + t.fe + 'mg · 纤维 ' + t.fi + 'g · 维C ' + t.vc + 'mg</div>';
   }
-
-  ['pfSex','pfAge','pfH','pfW','pfAct'].forEach(function(id){
-    const el = $('#' + id);
-    el.addEventListener('input', preview);
-    el.addEventListener('change', preview);
-  });
+  ['pfSex','pfAge','pfH','pfW','pfAct'].forEach(function(id){ const el = $('#' + id); el.addEventListener('input', preview); el.addEventListener('change', preview); });
   preview();
 }
 
@@ -1267,17 +1006,11 @@ function saveProfile(key){
   const p = state.profiles[key] || {};
   const name = ($('#pfName').value || '').trim();
   p.name = name || p.name || state.names[key] || '成员';
-  p.sex = $('#pfSex').value;
-  p.age = +$('#pfAge').value || 30;
-  p.height = +$('#pfH').value || 165;
-  p.weight = +$('#pfW').value || 55;
+  p.sex = $('#pfSex').value; p.age = +$('#pfAge').value || 30;
+  p.height = +$('#pfH').value || 165; p.weight = +$('#pfW').value || 55;
   p.act = +$('#pfAct').value || 1.4;
-  state.profiles[key] = p;
-  state.names[key] = p.name;
-  save();
-  hideModal();
-  renderNutrition();
-  toast('档案已保存');
+  state.profiles[key] = p; state.names[key] = p.name;
+  save(); hideModal(); renderNutrition(); toast('档案已保存');
 }
 
 /* =========================================================
@@ -1285,43 +1018,26 @@ function saveProfile(key){
    ========================================================= */
 let weekAnchor = weekStart(todayStr());
 
-function shiftWeek(n){
-  weekAnchor = addDays(weekAnchor, n * 7);
-  renderMenu();
-}
-function thisWeek(){
-  weekAnchor = weekStart(todayStr());
-  renderMenu();
-}
+function shiftWeek(n){ weekAnchor = addDays(weekAnchor, n * 7); renderMenu(); }
+function thisWeek(){ weekAnchor = weekStart(todayStr()); renderMenu(); }
 
 function renderMenu(){
   const wdNames = ['周一','周二','周三','周四','周五','周六','周日'];
-  const days = [];
-  for(let i = 0; i < 7; i++) days.push(addDays(weekAnchor, i));
+  const days = []; for(let i = 0; i < 7; i++) days.push(addDays(weekAnchor, i));
   const today = todayStr();
-
-  $('#menuNav').innerHTML =
-    '<button class="nav-btn" onclick="shiftWeek(-1)">‹</button>' +
+  $('#menuNav').innerHTML = '<button class="nav-btn" onclick="shiftWeek(-1)">‹</button>' +
     '<div class="week-label" onclick="thisWeek()">' + fmtMD(days[0]) + ' - ' + fmtMD(days[6]) + '</div>' +
     '<button class="nav-btn" onclick="shiftWeek(1)">›</button>';
-
   $('#menuBody').innerHTML = days.map(function(d, i){
     const m = state.menu[d] || {};
     const isToday = d === today;
     const rows = [['b','早餐'], ['l','午餐'], ['d','晚餐']].map(function(x){
-      return '<div class="meal-line">' +
-        '<span class="meal-label">' + x[1] + '</span>' +
+      return '<div class="meal-line"><span class="meal-label">' + x[1] + '</span>' +
         '<input class="meal-input" data-md="' + d + '" data-mm="' + x[0] + '" ' +
-          'value="' + esc(m[x[0]] || '') + '" placeholder="还没安排">' +
-      '</div>';
+          'value="' + esc(m[x[0]] || '') + '" placeholder="还没安排"></div>';
     }).join('');
-
-    return '<div class="card menu-day' + (isToday ? ' today' : '') + '">' +
-      '<div class="md-head">' +
-        '<span class="md-wd">' + wdNames[i] + '</span>' +
-        '<span class="md-date">' + fmtMD(d) + (isToday ? ' · 今天' : '') + '</span>' +
-      '</div>' + rows +
-    '</div>';
+    return '<div class="card menu-day' + (isToday ? ' today' : '') + '"><div class="md-head">' +
+        '<span class="md-wd">' + wdNames[i] + '</span><span class="md-date">' + fmtMD(d) + (isToday ? ' · 今天' : '') + '</span></div>' + rows + '</div>';
   }).join('');
 }
 
@@ -1335,7 +1051,7 @@ $('#page-menu').addEventListener('input', function(e){
 });
 
 /* =========================================================
-   购物清单（新增了一键从菜单提取功能）
+   购物清单
    ========================================================= */
 function addShopItem(){
   const name = ($('#shopName').value || '').trim();
@@ -1343,156 +1059,82 @@ function addShopItem(){
   const store = ($('#shopStore').value || '').trim();
   const priceRaw = $('#shopPrice').value;
   const price = priceRaw ? Number(priceRaw) : 0;
-
-  state.shopping.unshift({
-    id: uid(), name: name, store: store, price: isNaN(price) ? 0 : price, done: false
-  });
-  save();
-  renderShopping();
-
-  $('#shopName').value = '';
-  $('#shopStore').value = '';
-  $('#shopPrice').value = '';
-  $('#shopName').focus();
+  state.shopping.unshift({ id: uid(), name: name, store: store, price: isNaN(price) ? 0 : price, done: false });
+  save(); renderShopping();
+  $('#shopName').value = ''; $('#shopStore').value = ''; $('#shopPrice').value = ''; $('#shopName').focus();
 }
 
 function toggleShop(id){
   const it = state.shopping.find(function(x){ return x.id === id; });
   if(!it) return;
-  it.done = !it.done;
-  save();
-  renderShopping();
+  it.done = !it.done; save(); renderShopping();
 }
 
 function delShop(id){
   state.shopping = state.shopping.filter(function(x){ return x.id !== id; });
-  save();
-  renderShopping();
+  save(); renderShopping();
 }
 
 function generateShoppingFromMenu(){
-  const days = [];
-  for(let i = 0; i < 7; i++) days.push(addDays(weekAnchor, i));
-  
-  let extracted = [];
-  let matchedRecipes = new Set();
-
+  const days = []; for(let i = 0; i < 7; i++) days.push(addDays(weekAnchor, i));
+  let extracted = []; let matchedRecipes = new Set();
   days.forEach(function(d){
     const dayMenu = state.menu[d] || {};
     [dayMenu.b, dayMenu.l, dayMenu.d].forEach(function(dishName){
       if(!dishName) return;
-      // 在食谱库中查找匹配的菜谱
-      const recipe = state.recipes.find(function(r){
-        return dishName.indexOf(r.name) >= 0 || r.name.indexOf(dishName) >= 0;
-      });
+      const recipe = state.recipes.find(function(r){ return dishName.indexOf(r.name) >= 0 || r.name.indexOf(dishName) >= 0; });
       if(recipe){
         matchedRecipes.add(recipe.name);
-        (recipe.ingredients || []).forEach(function(ing){
-          if(ing.name) {
-             extracted.push({ name: ing.name, amount: ing.amount });
-          }
-        });
+        (recipe.ingredients || []).forEach(function(ing){ if(ing.name) extracted.push({ name: ing.name, amount: ing.amount }); });
       }
     });
   });
-
-  if(extracted.length === 0){
-    toast('本周菜单里的菜名没在食谱库里找到，先去添加食谱吧');
-    return;
-  }
-
-  // 去重并合并食材
+  if(extracted.length === 0){ toast('本周菜单里的菜名没在食谱库里找到，先去添加食谱吧'); return; }
   const uniqueIngredients = {};
   extracted.forEach(function(ing){
-    if(!uniqueIngredients[ing.name]) {
-      uniqueIngredients[ing.name] = [];
-    }
+    if(!uniqueIngredients[ing.name]) uniqueIngredients[ing.name] = [];
     if(ing.amount) uniqueIngredients[ing.name].push(ing.amount);
   });
-
   let addedCount = 0;
   Object.keys(uniqueIngredients).forEach(function(name){
-    // 如果已经在购物清单里了，就不重复添加
     const exists = state.shopping.find(function(item){ return item.name === name; });
-    if(!exists){
-      const amountStr = uniqueIngredients[name].join(' + ');
-      state.shopping.unshift({
-        id: uid(), name: name, store: '', price: 0, done: false
-        // 这里可以把 amount 放进备注，但为了界面简洁暂时不加
-      });
-      addedCount++;
-    }
+    if(!exists){ state.shopping.unshift({ id: uid(), name: name, store: '', price: 0, done: false }); addedCount++; }
   });
-
-  save();
-  renderShopping();
-  if(addedCount > 0){
-    toast('已从「' + Array.from(matchedRecipes).join(',') + '」提取了 ' + addedCount + ' 种新食材');
-  } else {
-    toast('菜单里的食材都已经在清单里啦');
-  }
+  save(); renderShopping();
+  if(addedCount > 0) toast('已从「' + Array.from(matchedRecipes).join(',') + '」提取了 ' + addedCount + ' 种新食材');
+  else toast('菜单里的食材都已经在清单里啦');
 }
 
 function renderShopping(){
-  const items = state.shopping;
-  const list = $('#shopList');
-  const sum = $('#shopSummary');
-
+  const items = state.shopping; const list = $('#shopList'); const sum = $('#shopSummary');
   if(!items.length){
-    list.innerHTML =
-      '<div class="empty" style="padding:34px 10px;">' +
-        '<div class="empty-ico">🧺</div><p>清单是空的<br>上面添加要买的东西吧</p>' +
-      '</div>';
-    sum.innerHTML = '';
-    return;
+    list.innerHTML = '<div class="empty" style="padding:34px 10px;"><div class="empty-ico">🧺</div><p>清单是空的<br>上面添加要买的东西吧</p></div>';
+    sum.innerHTML = ''; return;
   }
-
   list.innerHTML = items.map(function(it){
-    return '<div class="shop-item' + (it.done ? ' done' : '') + '">' +
-      '<button class="check' + (it.done ? ' on' : '') + '" onclick="toggleShop(\'' + it.id + '\')">' +
-        (it.done ? '✓' : '') + '</button>' +
-      '<div class="si-main">' +
-        '<div class="si-name">' + esc(it.name) + '</div>' +
-        (it.store ? '<div class="si-meta">' + esc(it.store) + '</div>' : '') +
-      '</div>' +
+    return '<div class="shop-item' + (it.done ? ' done' : '') + '"><button class="check' + (it.done ? ' on' : '') + '" onclick="toggleShop(\'' + it.id + '\')">' + (it.done ? '✓' : '') + '</button>' +
+      '<div class="si-main"><div class="si-name">' + esc(it.name) + '</div>' + (it.store ? '<div class="si-meta">' + esc(it.store) + '</div>' : '') + '</div>' +
       '<div class="si-price">' + (Number(it.price) ? '¥' + Number(it.price).toFixed(2) : '') + '</div>' +
-      '<button class="si-del" onclick="delShop(\'' + it.id + '\')">✕</button>' +
-    '</div>';
+      '<button class="si-del" onclick="delShop(\'' + it.id + '\')">✕</button></div>';
   }).join('');
-
   const total = items.reduce(function(s, i){ return s + (Number(i.price) || 0); }, 0);
   const doneCount = items.filter(function(i){ return i.done; }).length;
-
-  sum.innerHTML =
-    '<span>已买 ' + doneCount + ' / ' + items.length + ' 项</span>' +
-    '<b>合计 ¥' + total.toFixed(2) + '</b>';
+  sum.innerHTML = '<span>已买 ' + doneCount + ' / ' + items.length + ' 项</span><b>合计 ¥' + total.toFixed(2) + '</b>';
 }
 
 $('#addShopBtn').addEventListener('click', addShopItem);
 $('#genShopBtn').addEventListener('click', generateShoppingFromMenu);
-$('#shopPrice').addEventListener('keydown', function(e){
-  if(e.key === 'Enter') addShopItem();
-});
-$('#shopName').addEventListener('keydown', function(e){
-  if(e.key === 'Enter') $('#shopStore').focus();
-});
+$('#shopPrice').addEventListener('keydown', function(e){ if(e.key === 'Enter') addShopItem(); });
+$('#shopName').addEventListener('keydown', function(e){ if(e.key === 'Enter') $('#shopStore').focus(); });
 
 /* =========================================================
    备份
    ========================================================= */
 function renderBackup(){
-  let bytes = 0;
-  try{ bytes = new Blob([JSON.stringify(state)]).size; }catch(e){}
+  let bytes = 0; try{ bytes = new Blob([JSON.stringify(state)]).size; }catch(e){}
   const kb = (bytes / 1024).toFixed(1);
-  const counts =
-    '食谱 ' + state.recipes.length + ' 个 · ' +
-    '日记 ' + Object.keys(state.diary).length + ' 天 · ' +
-    '菜单 ' + Object.keys(state.menu).length + ' 天 · ' +
-    '采购 ' + state.shopping.length + ' 项';
-
-  $('#storageInfo').innerHTML =
-    '<div class="stat-row"><span>占用空间</span><b>' + kb + ' KB</b></div>' +
-    '<div class="stat-row"><span>记录数量</span><b>' + counts + '</b></div>';
+  const counts = '食谱 ' + state.recipes.length + ' 个 · 日记 ' + Object.keys(state.diary).length + ' 天 · 菜单 ' + Object.keys(state.menu).length + ' 天 · 采购 ' + state.shopping.length + ' 项';
+  $('#storageInfo').innerHTML = '<div class="stat-row"><span>占用空间</span><b>' + kb + ' KB</b></div><div class="stat-row"><span>记录数量</span><b>' + counts + '</b></div>';
 }
 
 function exportData(){
@@ -1500,59 +1142,35 @@ function exportData(){
   const blob = new Blob([data], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = '家庭食谱备份-' + todayStr() + '.json';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(function(){
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, 1200);
+  a.href = url; a.download = '家庭食谱备份-' + todayStr() + '.json';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ document.body.removeChild(a); URL.revokeObjectURL(url); }, 1200);
   toast('已导出备份文件');
 }
 
 function copyData(){
   const text = JSON.stringify(state);
   if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(text).then(function(){
-      toast('备份内容已复制');
-    }).catch(function(){
-      fallbackCopy(text);
-    });
-  }else{
-    fallbackCopy(text);
-  }
+    navigator.clipboard.writeText(text).then(function(){ toast('备份内容已复制'); }).catch(function(){ fallbackCopy(text); });
+  }else{ fallbackCopy(text); }
 }
 
 function fallbackCopy(text){
   showModal(
-    '<div class="sheet-head">' +
-      '<button class="text-btn" id="cpBack">关闭</button>' +
-      '<div class="sheet-title">复制备份文本</div>' +
-      '<span style="width:36px"></span>' +
-    '</div>' +
-    '<div class="sheet-body">' +
-      '<p class="muted">长按下面的文本，选择「全选 → 拷贝」，粘贴到备忘录或微信里保存。</p>' +
-      '<textarea id="cpText" rows="14" style="font-size:12px;font-family:ui-monospace,Menlo,monospace;">' +
-        esc(text) +
-      '</textarea>' +
-    '</div>'
+    '<div class="sheet-head"><button class="text-btn" id="cpBack">关闭</button><div class="sheet-title">复制备份文本</div><span style="width:36px"></span></div>' +
+    '<div class="sheet-body"><p class="muted">长按下面的文本，选择「全选 → 拷贝」，粘贴到备忘录或微信里保存。</p>' +
+      '<textarea id="cpText" rows="14" style="font-size:12px;font-family:ui-monospace,Menlo,monospace;">' + esc(text) + '</textarea></div>'
   );
   $('#cpBack').onclick = hideModal;
-  setTimeout(function(){
-    const ta = $('#cpText');
-    if(ta){ ta.focus(); ta.select(); }
-  }, 120);
+  setTimeout(function(){ const ta = $('#cpText'); if(ta){ ta.focus(); ta.select(); } }, 120);
 }
 
 function importData(file){
   const reader = new FileReader();
   reader.onload = function(){
-    let obj = null;
-    try{ obj = JSON.parse(reader.result); }catch(e){ toast('文件格式不正确'); return; }
+    let obj = null; try{ obj = JSON.parse(reader.result); }catch(e){ toast('文件格式不正确'); return; }
     if(!obj || typeof obj !== 'object' || Array.isArray(obj)){ toast('文件格式不正确'); return; }
     if(!confirm('恢复备份会覆盖当前全部数据，确定继续吗？')) return;
-
     state = Object.assign(defaultState(), obj);
     state.names = Object.assign({ me:'我', k1:'宝贝1', k2:'宝贝2' }, obj.names || {});
     state.profiles = Object.assign(defaultProfiles(), obj.profiles || {});
@@ -1560,16 +1178,8 @@ function importData(file){
     if(!Array.isArray(state.shopping)) state.shopping = [];
     if(typeof state.diary !== 'object' || !state.diary) state.diary = {};
     if(typeof state.menu !== 'object' || !state.menu) state.menu = {};
-
-    ['me','k1','k2'].forEach(function(k){
-      if(state.profiles[k] && state.profiles[k].name) state.names[k] = state.profiles[k].name;
-    });
-
-    save();
-    diaryDate = todayStr();
-    weekAnchor = weekStart(todayStr());
-    switchTab('recipes');
-    toast('恢复成功');
+    ['me','k1','k2'].forEach(function(k){ if(state.profiles[k] && state.profiles[k].name) state.names[k] = state.profiles[k].name; });
+    save(); diaryDate = todayStr(); weekAnchor = weekStart(todayStr()); switchTab('recipes'); toast('恢复成功');
   };
   reader.onerror = function(){ toast('文件读取失败'); };
   reader.readAsText(file);
@@ -1578,40 +1188,21 @@ function importData(file){
 $('#exportBtn').addEventListener('click', exportData);
 $('#copyBtn').addEventListener('click', copyData);
 $('#importBtn').addEventListener('click', function(){ $('#importFile').click(); });
-$('#importFile').addEventListener('change', function(e){
-  const f = e.target.files && e.target.files[0];
-  if(f) importData(f);
-  e.target.value = '';
-});
-
+$('#importFile').addEventListener('change', function(e){ const f = e.target.files && e.target.files[0]; if(f) importData(f); e.target.value = ''; });
 $('#clearBtn').addEventListener('click', function(){
   if(!confirm('确定清空全部数据吗？此操作不可撤销，建议先导出备份。')) return;
   if(!confirm('再确认一次：所有食谱、日记、菜单、购物清单和营养档案都会被删除。')) return;
-  state = defaultState();
-  state.recipes = [];
-  save();
-  diaryDate = todayStr();
-  weekAnchor = weekStart(todayStr());
-  switchTab('recipes');
-  toast('已清空全部数据');
+  state = defaultState(); state.recipes = []; save();
+  diaryDate = todayStr(); weekAnchor = weekStart(todayStr()); switchTab('recipes'); toast('已清空全部数据');
 });
 
 /* =========================================================
    启动
    ========================================================= */
-renderRecipes();
-renderDiary();
-renderNutrition();
-renderMenu();
-renderShopping();
-renderBackup();
+renderRecipes(); renderDiary(); renderNutrition(); renderMenu(); renderShopping(); renderBackup();
 
 let lastTouch = 0;
-document.addEventListener('touchend', function(e){
-  const now = Date.now();
-  if(now - lastTouch <= 300) e.preventDefault();
-  lastTouch = now;
-}, { passive: false });
+document.addEventListener('touchend', function(e){ const now = Date.now(); if(now - lastTouch <= 300) e.preventDefault(); lastTouch = now; }, { passive: false });
 </script>
 </body>
 </html>
